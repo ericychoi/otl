@@ -8,4 +8,5 @@ WORKDIR /app
 RUN apk add --no-cache openssl && mkdir -p /app/keys
 COPY --from=builder /bin/server /bin/server
 COPY --from=builder /app/bin/genkeys.sh /bin/genkeys.sh
+RUN chmod +x /bin/genkeys.sh
 CMD /bin/genkeys.sh && /bin/server

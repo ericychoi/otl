@@ -25,4 +25,16 @@ go.work.sum
 .env
 
 *.tar
+*.tar.gz
 keys/
+
+# SSL certificates and keys
+certs/
+*.crt
+*.key
+*.pem
+
+# Docker related
+*.tar
+docker-compose.override.yml
+scratch.txt

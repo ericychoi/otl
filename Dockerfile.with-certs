@@ -1,0 +1,21 @@
+FROM golang:1.23-alpine AS builder
+WORKDIR /app
+COPY . .
+RUN go mod download && CGO_ENABLED=0 GOOS=linux go build -o /bin/server ./cmd/server
+
+FROM alpine:3.18 AS ssl-generator
+WORKDIR /app
+RUN apk add --no-cache openssl && mkdir -p /app/keys
+COPY bin/genkeys.sh /app/genkeys.sh
+RUN chmod +x /app/genkeys.sh && /app/genkeys.sh
+# Generate SSL certificates directly in Dockerfile
+RUN openssl req -x509 -newkey rsa:2048 -keyout /app/keys/server.key \
+    -out /app/keys/server.crt -days 365 -nodes \
+    -subj '/C=US/ST=State/L=City/O=Organization/CN=localhost'
+
+FROM alpine:3.18
+WORKDIR /app
+RUN mkdir -p /app/keys
+COPY --from=builder /bin/server /bin/server
+COPY --from=ssl-generator /app/keys/ /app/keys/
+CMD ["/bin/server"]

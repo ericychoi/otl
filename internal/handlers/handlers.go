@@ -15,6 +15,7 @@ type Handler struct {
 	expectedClientID     string
 	expectedClientSecret string
 	jwtService           *jwt.Service
+	signaturePublicKey   string
 }
 
 // TokenResponse represents the response from the token endpoint
@@ -25,11 +26,12 @@ type TokenResponse struct {
 }
 
 // NewHandler creates a new handler
-func NewHandler(cID, cSecret string, jwtService *jwt.Service) *Handler {
+func NewHandler(cID, cSecret string, jwtService *jwt.Service, sp string) *Handler {
 	return &Handler{
 		expectedClientID:     cID,
 		expectedClientSecret: cSecret,
 		jwtService:           jwtService,
+		signaturePublicKey:   sp,
 	}
 }
 

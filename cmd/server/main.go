@@ -21,7 +21,7 @@ func main() {
 	}
 
 	// Initialize handlers
-	handler := handlers.NewHandler(cfg.ClientID, cfg.ClientSecret, jwtService)
+	handler := handlers.NewHandler(cfg.ClientID, cfg.ClientSecret, jwtService, cfg.SignaturePublicKey)
 
 	// Set up routes
 	http.HandleFunc("/token", handler.TokenRequest)
@@ -31,6 +31,11 @@ func main() {
 	http.HandleFunc("/webhook", handler.Webhook)
 
 	// Start server
-	log.Printf("Starting OAuth2 server on port %s", cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, nil))
+	if cfg.EnableHTTPS {
+		log.Printf("Starting OAuth2 server with HTTPS on port %s", cfg.Port)
+		log.Fatal(http.ListenAndServeTLS(":"+cfg.Port, cfg.TLSCertPath, cfg.TLSKeyPath, nil))
+	} else {
+		log.Printf("Starting OAuth2 server with HTTP on port %s", cfg.Port)
+		log.Fatal(http.ListenAndServe(":"+cfg.Port, nil))
+	}
 }
