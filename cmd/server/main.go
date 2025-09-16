@@ -21,7 +21,7 @@ func main() {
 	}
 
 	// Initialize handlers
-	handler := handlers.NewHandler(cfg.ClientID, cfg.ClientSecret, jwtService, cfg.SignaturePublicKey)
+	handler := handlers.NewHandler(cfg.ClientID, cfg.ClientSecret, jwtService, cfg.SignaturePublicKey, cfg.TokenHTTPBasicOnly)
 
 	// Set up routes
 	http.HandleFunc("/token", handler.TokenRequest)

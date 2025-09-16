@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 
 	"github.com/ericychoi/otl/internal/jwt"
 )
@@ -16,6 +18,7 @@ type Handler struct {
 	expectedClientSecret string
 	jwtService           *jwt.Service
 	signaturePublicKey   string
+	tokenBasicOnly       bool
 }
 
 // TokenResponse represents the response from the token endpoint
@@ -26,12 +29,13 @@ type TokenResponse struct {
 }
 
 // NewHandler creates a new handler
-func NewHandler(cID, cSecret string, jwtService *jwt.Service, sp string) *Handler {
+func NewHandler(cID, cSecret string, jwtService *jwt.Service, sp string, shouldTokenBasicOnly bool) *Handler {
 	return &Handler{
 		expectedClientID:     cID,
 		expectedClientSecret: cSecret,
 		jwtService:           jwtService,
 		signaturePublicKey:   sp,
+		tokenBasicOnly:       shouldTokenBasicOnly,
 	}
 }
 
@@ -48,6 +52,11 @@ func logRequest(r *http.Request) {
 	log.Printf("Request received: %s %s\n%s", r.Method, r.URL.Path, string(requestDump))
 }
 
+// logRequest logs the full request details
+func logResponse(message string, statusCode int) {
+	log.Printf("Response: %s %d\n", message, statusCode)
+}
+
 // TokenRequest handles the OAuth2 token endpoint
 func (h *Handler) TokenRequest(w http.ResponseWriter, r *http.Request) {
 	logRequest(r)
@@ -57,31 +66,44 @@ func (h *Handler) TokenRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse form data
-	err := r.ParseForm()
-	if err != nil {
-		http.Error(w, "Could not parse form data", http.StatusBadRequest)
-		return
-	}
-
-	// Validate grant type
-	grantType := r.Form.Get("grant_type")
-	if grantType != "client_credentials" && grantType != "authorization_code" {
-		http.Error(w, "Unsupported grant type", http.StatusBadRequest)
-		return
-	}
-
-	// Validate client credentials
-	providedClientID := r.Form.Get("client_id")
-	providedClientSecret := r.Form.Get("client_secret")
-
-	// Also check for Authorization header (Basic auth)
-	if providedClientID == "" || providedClientSecret == "" {
-		auth := r.Header.Get("Authorization")
-		if auth != "" {
-			// In a real implementation, you would decode the Basic auth header
-			// For simplicity, we'll just continue with the check below
+	// try basic auth first
+	var providedClientID, providedClientSecret string
+	auth := r.Header.Get("Authorization")
+	if strings.HasPrefix(auth, "Basic ") {
+		// Decode Basic auth
+		payload, err := base64.StdEncoding.DecodeString(auth[6:])
+		if err != nil {
+			http.Error(w, "Invalid Authorization header", http.StatusBadRequest)
+			return
 		}
+
+		// Split client_id:client_secret
+		credentials := strings.SplitN(string(payload), ":", 2)
+		if len(credentials) == 2 {
+			providedClientID = credentials[0]
+			providedClientSecret = credentials[1]
+		}
+	}
+
+	// If credentials not in form data, check Authorization header (Basic auth)
+	if !h.tokenBasicOnly && (providedClientID == "" || providedClientSecret == "") {
+		// Parse form data
+		err := r.ParseForm()
+		if err != nil {
+			http.Error(w, "Could not parse form data", http.StatusBadRequest)
+			return
+		}
+
+		// Validate grant type
+		grantType := r.Form.Get("grant_type")
+		if grantType != "client_credentials" && grantType != "authorization_code" {
+			http.Error(w, "Unsupported grant type", http.StatusBadRequest)
+			return
+		}
+
+		// Validate client credentials - support both Basic auth and form data
+		providedClientID = r.Form.Get("client_id")
+		providedClientSecret = r.Form.Get("client_secret")
 	}
 
 	if providedClientID != h.expectedClientID || providedClientSecret != h.expectedClientSecret {
@@ -100,7 +122,7 @@ func (h *Handler) TokenRequest(w http.ResponseWriter, r *http.Request) {
 	response := TokenResponse{
 		AccessToken: token,
 		TokenType:   "bearer",
-		ExpiresIn:   3600, // 1 hour
+		ExpiresIn:   60,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

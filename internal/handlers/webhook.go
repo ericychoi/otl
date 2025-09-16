@@ -21,6 +21,7 @@ func (h *Handler) Webhook(w http.ResponseWriter, r *http.Request) {
 	// Extract token from Authorization header
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
+		logResponse("Authorization header required", http.StatusUnauthorized)
 		http.Error(w, "Authorization header required", http.StatusUnauthorized)
 		return
 	}
@@ -28,6 +29,7 @@ func (h *Handler) Webhook(w http.ResponseWriter, r *http.Request) {
 	// Check for Bearer token format
 	parts := strings.Split(authHeader, " ")
 	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		logResponse("Authorization header format must be 'Bearer {token}'", http.StatusUnauthorized)
 		http.Error(w, "Authorization header format must be 'Bearer {token}'", http.StatusUnauthorized)
 		return
 	}
@@ -47,12 +49,14 @@ func (h *Handler) Webhook(w http.ResponseWriter, r *http.Request) {
 
 	// Handle parsing/verification errors
 	if err != nil {
+		logResponse(fmt.Sprintf("Invalid token: %v", err), http.StatusUnauthorized)
 		http.Error(w, fmt.Sprintf("Invalid token: %v", err), http.StatusUnauthorized)
 		return
 	}
 
 	// Check if token is valid
 	if !token.Valid {
+		logResponse("Invalid token", http.StatusUnauthorized)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
 	}
@@ -60,12 +64,15 @@ func (h *Handler) Webhook(w http.ResponseWriter, r *http.Request) {
 	// Token is valid, check if there is a signature
 	s := r.Header.Get("X-Twilio-Email-Event-Webhook-Signature")
 	if s == "" {
+		resp := `{"status":"success","message":"OAuth Token is valid"}`
+		logResponse(resp, http.StatusOK)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"success","message":"OAuth Token is valid"}`))
+		w.Write([]byte(resp))
 		return
 	}
 	ts := r.Header.Get("X-Twilio-Email-Event-Webhook-Timestamp")
 	if ts == "" {
+		logResponse(fmt.Sprintf("signature detected but timestamp missing: %v", err), http.StatusUnauthorized)
 		http.Error(w, fmt.Sprintf("signature detected but timestamp missing: %v", err), http.StatusUnauthorized)
 		return
 	}
@@ -88,6 +95,7 @@ func (h *Handler) Webhook(w http.ResponseWriter, r *http.Request) {
 	// Parse the public key from string to *ecdsa.PublicKey
 	publicKeyBytes, err := base64.StdEncoding.DecodeString(h.signaturePublicKey)
 	if err != nil {
+		logResponse("Invalid public key format", http.StatusInternalServerError)
 		http.Error(w, "Invalid public key format", http.StatusInternalServerError)
 		return
 	}
@@ -95,21 +103,26 @@ func (h *Handler) Webhook(w http.ResponseWriter, r *http.Request) {
 	// Parse DER-encoded public key directly
 	publicKeyInterface, err := x509.ParsePKIXPublicKey(publicKeyBytes)
 	if err != nil {
+		logResponse("Failed to parse public key", http.StatusInternalServerError)
 		http.Error(w, "Failed to parse public key", http.StatusInternalServerError)
 		return
 	}
 
 	publicKey, ok := publicKeyInterface.(*ecdsa.PublicKey)
 	if !ok {
+		logResponse("Public key is not ECDSA", http.StatusInternalServerError)
 		http.Error(w, "Public key is not ECDSA", http.StatusInternalServerError)
 		return
 	}
 
 	if !ecdsa.Verify(publicKey, hashedPayload, ecdsaSig.R, ecdsaSig.S) {
+		logResponse("Signature verification failed", http.StatusUnauthorized)
 		http.Error(w, "Signature verification failed", http.StatusUnauthorized)
 		return
 	}
 
+	resp := `{"status":"success","message":"Token is valid"}`
+	logResponse(resp, http.StatusOK)
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"success","message":"Token is valid"}`))
+	w.Write([]byte(resp))
 }

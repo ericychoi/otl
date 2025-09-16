@@ -13,9 +13,10 @@ type Config struct {
 	PublicKeyPath      string `envconfig:"PUBLIC_KEY_PATH" default:"keys/public.pem"`
 	SignaturePublicKey string `envconfig:"TWILIO_SIGNATURE_PUBLIC_KEY" default:""`
 	// SSL/TLS Configuration
-	TLSCertPath string `envconfig:"TLS_CERT_PATH" default:"keys/server.crt"`
-	TLSKeyPath  string `envconfig:"TLS_KEY_PATH" default:"keys/server.key"`
-	EnableHTTPS bool   `envconfig:"ENABLE_HTTPS" default:"false"`
+	TLSCertPath        string `envconfig:"TLS_CERT_PATH" default:"keys/server.crt"`
+	TLSKeyPath         string `envconfig:"TLS_KEY_PATH" default:"keys/server.key"`
+	EnableHTTPS        bool   `envconfig:"ENABLE_HTTPS" default:"false"`
+	TokenHTTPBasicOnly bool   `envconfig:"OAUTH_TOKEN_HTTP_BASIC_ONLY" default:"true"` // enforce HTTP Basic Auth for token endpoint
 }
 
 // Load loads configuration from environment variables
