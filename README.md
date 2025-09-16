@@ -1,8 +1,9 @@
 # OTL - OAuth2 Test Lab
 
-*NOT MEANT TO BE FOR PRODUCTION USE*
+**FOR TESTING AND DEVELOPMENT PURPOSES ONLY - NOT INTENDED FOR PRODUCTION USE**
 
-A minimal test OAuth2 provider that issues JWT tokens signed with RSA keys for a single client.  You can use this to test a basic OAuth2 integration with other OAuth2-Signed payload servicers, such as [Twilio SendGrid](https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/getting-started-event-webhook-security-features).
+A minimal test OAuth2 provider that issues JWT tokens signed with RSA keys for a single client.  You can use this to test a basic OAuth2 integration with other OAuth2-Signed payload servicers,
+such as [Twilio SendGrid](https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/getting-started-event-webhook-security-features) which implements [RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.3).
 
 When `/token` is provided with an expected pair of `oauth_client_id` and `oauth_client_secret`, it will provide a JWT that is signed by the key pair provided.
 
@@ -186,3 +187,7 @@ curl http://localhost:8080/jwks
   ]
 }
 ```
+
+## References
+* [RFC 6749 - The OAuth 2.0 Authorization Framework](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.3)
+* [Twilio SendGrid - Event Webhook Security](https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/getting-started-event-webhook-security-features#oauth-20)
